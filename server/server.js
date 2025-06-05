@@ -1,37 +1,70 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const User = require('./userModel');
-const app = express();
+const express = require("express")
+const cors = require("cors")
+const mongoose = require("mongoose")
 
-app.use(cors());
-app.use(express.json());
 
-mongoose.connect('mongodb+srv://hariharan3002112:HARI7094@cluster0.nb5mjxz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0')
-  .then(() => console.log("MongoDB Connected"))
-  .catch(err => console.log(err));
+const app = express()
+app.use(cors())
+app.use(express.json())
 
-app.post('/register', async (req, res) => {
-  const { username, password } = req.body;
-  try {
-    const user = new User({ username, password });
-    await user.save();
-    res.status(201).send("User Registered");
-  } catch (e) {
-    res.status(400).send("Error registering user");
-  }
-});
+mongoose.connect("mongodb+srv://hariharan3002112:HARI7094@cluster0.nb5mjxz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+    .then(() => console.log("db connect ..."))
+    .catch(() => console.log("db error"))
 
-app.post('/login', async (req, res) => {
-  const { username, password } = req.body;
-  const user = await User.findOne({ username });
-  if (!user || user.password !== password) {
-    return res.status(401).send("Invalid Credentials");
-  }
-  res.send("Login Success");
-});
+//model create
+const logindata = mongoose.model("logindata", { name: String, gmail: { type: String, unique: true }, pass: Number }, "logindata")
+ 
+app.get('/loginlist', function (req, res) {
+    logindata.find().then(function (data) {
+        res.send(data)
+    })
+})
 
-app.get('/', (req, res) => res.send("API Running"));
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+//backend register add
+app.post("/register", function (req, res) {
+    var { name, gmail, pass } = req.body;
+
+    logindata.findOne({ gmail: gmail }).then(existingUser => {
+        if (existingUser) {
+            res.json("duplicate");  // 👈 Respond with duplicate status
+        } else {
+            const newData = new logindata({ name, gmail, pass });
+            newData.save()
+                .then(() => {
+                    console.log("User saved");
+                    res.json("success");  // 👈 Confirm success to frontend
+                })
+                .catch(() => {
+                    console.log("Can't save user");
+                    res.status(500).json("error");
+                });
+        }
+    })
+        .catch(() => console.log("con't save data"))
+})
+
+//login
+app.post("/login", function (req, res) {
+    var { gmail, pass } = req.body
+    logindata.findOne({ gmail })
+        .then(function (user) {
+            if (user)
+                if (user.pass === Number(pass)) {
+                    res.json("success")
+                    console.log('success')
+                }
+                else {
+                    res.json('error')
+                    console.log('pass error')
+                }
+            else {
+                res.json("no record")
+                console.log('error record')
+            }
+        })
+})
+
+app.listen(5001, function () {
+    console.log("server start ...")
+})
